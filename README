@@ -1,0 +1,54 @@
+
+
+Monq - an AMQP message queue wrapper
+
+Tested against RabbitMQ and the AMQP PECL extension for PHP. 
+
+Typical message queue usage
+---------------------------
+	
+	$conn = mq::connect('amqp://user:pass@host/exchange');
+	
+	// The emitter.
+	mq::publish('spy.prod.order.new', array(
+		'CustomerName'=>'Wesley Willis',
+		'OrderLines'=>array(
+			// ...
+		)
+	));
+	
+	// The consumer.
+	mq::consume(
+		mq::getQueue('spy.prod.order.new'),
+		function($msg) {
+			$payload = $msg['message_body'];
+			printf("Received a new order from %s\n", $payload->CustomerName);
+			
+			// Return true to ack the message. False to re-queue it.
+			return true;
+		}
+	);
+
+
+Message queue RPC
+-----------------
+
+Example use case: Querying a database sitting behind a firewall or NAT.
+
+	// RPC client
+	$rows = mq::rpc()->call('db.hr.Query', array(
+		'sql'=>'SELECT * FROM departments'
+	), $timeout=1);
+	print_r($rows);
+	exit;
+	
+	// RPC server. Queries db and reports back.
+	mq::rpc()->serve('db.hr.Query', function($request) {
+		$res = mysql_query($request->sql);
+		$rows = array();
+		while($row = mysql_fetch_assoc($res)) {
+			$rows[] = $row;
+		}
+		return $rows;
+	});
+	
